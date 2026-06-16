@@ -123,6 +123,105 @@ export const giveawayJoinHandler = {
     }
 };
 
+export const giveawayLeaveHandler = {
+    customId: 'giveaway_leave',
+    async execute(interaction, client) {
+        try {
+            if (isUserRateLimited(interaction.user.id, interaction.message.id)) {
+                return interaction.reply({
+                    embeds: [
+                        errorEmbed(
+                            'Rate Limited',
+                            'Please wait a moment before interacting with this giveaway again.'
+                        )
+                    ],
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            recordUserInteraction(interaction.user.id, interaction.message.id);
+
+            const lockKey = `giveaway:${interaction.message.id}`;
+            await Mutex.runExclusive(lockKey, async () => {
+                const guildGiveaways = await getGuildGiveaways(client, interaction.guildId);
+                const giveaway = guildGiveaways.find(g => g.messageId === interaction.message.id);
+
+                if (!giveaway) {
+                    throw new TitanBotError(
+                        'Giveaway not found in database',
+                        ErrorTypes.VALIDATION,
+                        'This giveaway is no longer active.',
+                        { messageId: interaction.message.id, guildId: interaction.guildId }
+                    );
+                }
+
+                const endedByTime = isGiveawayEnded(giveaway);
+                const endedByFlag = giveaway.ended || giveaway.isEnded;
+
+                if (endedByTime || endedByFlag) {
+                    return interaction.reply({
+                        embeds: [
+                            errorEmbed(
+                                'Giveaway Ended',
+                                'This giveaway has already ended.'
+                            )
+                        ],
+                        flags: MessageFlags.Ephemeral
+                    });
+                }
+
+                const participants = giveaway.participants || [];
+                const userId = interaction.user.id;
+
+                const participantIndex = participants.indexOf(userId);
+                if (participantIndex === -1) {
+                    return interaction.reply({
+                        embeds: [
+                            errorEmbed(
+                                'Not Entered',
+                                'You are not participating in this giveaway.'
+                            )
+                        ],
+                        flags: MessageFlags.Ephemeral
+                    });
+                }
+
+                participants.splice(participantIndex, 1);
+                giveaway.participants = participants;
+
+                await saveGiveaway(client, interaction.guildId, giveaway);
+
+                logger.debug(`User ${interaction.user.tag} left giveaway ${interaction.message.id}`);
+
+                const updatedEmbed = createGiveawayEmbed(giveaway, 'active');
+                const updatedRow = createGiveawayButtons(false);
+
+                await interaction.message.edit({
+                    embeds: [updatedEmbed],
+                    components: [updatedRow]
+                });
+
+                await interaction.reply({
+                    embeds: [
+                        successEmbed(
+                            'Left Giveaway',
+                            'You have successfully left the giveaway.'
+                        )
+                    ],
+                    flags: MessageFlags.Ephemeral
+                });
+            });
+        } catch (error) {
+            logger.error('Error in giveaway leave handler:', error);
+            await handleInteractionError(interaction, error, {
+                type: 'button',
+                customId: 'giveaway_leave',
+                handler: 'giveaway'
+            });
+        }
+    }
+};
+
 
 
 
