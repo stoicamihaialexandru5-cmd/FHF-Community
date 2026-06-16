@@ -89,6 +89,7 @@ export async function checkStaffActivity(client) {
             }
 
             const staffMembers = guild.members.cache.filter(m => m.roles.cache.has(STAFF_ROLE_ID));
+            const warnedUsers = [];
             
             for (const [userId, member] of staffMembers) {
                 if (protections[userId]) {
@@ -105,6 +106,7 @@ export async function checkStaffActivity(client) {
                 const data = await getFromDb(key, { messages: 0, voiceTimeMs: 0, voiceJoinTimestamp: null });
                 
                 if (data.messages < DAILY_MESSAGE_QUOTA) {
+                    warnedUsers.push(`<@${userId}> (${data.messages}/${DAILY_MESSAGE_QUOTA} mesaje)`);
                     // Trimitem avertismentul în mesaj privat
                     try {
                         await member.send(`⚠️ **Staff Warning**: Nu ai atins target-ul zilnic de ${DAILY_MESSAGE_QUOTA} mesaje (ai trimis doar ${data.messages}). Te rugăm să fii mai activ pe chat!`);
@@ -120,6 +122,28 @@ export async function checkStaffActivity(client) {
                     data.voiceJoinTimestamp = Date.now();
                 }
                 await setInDb(key, data);
+            }
+
+            // Dacă avem un canal de log setat și persoane care au luat warn, trimitem un sumar.
+            const LOGS_CHANNEL_ID = '1516444142715277343';
+            if (warnedUsers.length > 0) {
+                try {
+                    const logsChannel = await guild.channels.fetch(LOGS_CHANNEL_ID).catch(() => null);
+                    if (logsChannel && logsChannel.isTextBased()) {
+                        await logsChannel.send(`📊 **Raport Zilnic Activitate Staff**\n\nUrmătorii membri nu au atins targetul de activitate și au primit warn în DM:\n${warnedUsers.join('\n')}`);
+                    }
+                } catch (e) {
+                    logger.error('Failed to send staff daily report to logs channel', e);
+                }
+            } else {
+                try {
+                    const logsChannel = await guild.channels.fetch(LOGS_CHANNEL_ID).catch(() => null);
+                    if (logsChannel && logsChannel.isTextBased()) {
+                        await logsChannel.send(`📊 **Raport Zilnic Activitate Staff**\n\nToată lumea și-a atins targetul astăzi! Niciun warn nu a fost acordat. 🎉`);
+                    }
+                } catch (e) {
+                    logger.error('Failed to send staff daily report to logs channel', e);
+                }
             }
         }
     } catch (error) {
