@@ -92,7 +92,7 @@ export async function checkStaffActivity(client) {
             
             for (const [userId, member] of staffMembers) {
                 if (protections[userId]) {
-                    // Skip protected members, but still reset their stats
+                    // Skip protected members, dar resetează statusul pentru a doua zi
                     const key = getStaffActivityKey(guildId, userId);
                     const data = await getFromDb(key, { messages: 0, voiceTimeMs: 0, voiceJoinTimestamp: null });
                     data.messages = 0;
@@ -105,20 +105,18 @@ export async function checkStaffActivity(client) {
                 const data = await getFromDb(key, { messages: 0, voiceTimeMs: 0, voiceJoinTimestamp: null });
                 
                 if (data.messages < DAILY_MESSAGE_QUOTA) {
-                    // Send warning
+                    // Trimitem avertismentul în mesaj privat
                     try {
                         await member.send(`⚠️ **Staff Warning**: Nu ai atins target-ul zilnic de ${DAILY_MESSAGE_QUOTA} mesaje (ai trimis doar ${data.messages}). Te rugăm să fii mai activ pe chat!`);
                     } catch (e) {
                         logger.warn(`Could not DM staff member ${member.user.tag} for warning.`);
-                        // Optional: Send to a logging channel or staff channel if DM fails
                     }
                 }
 
-                // Reset for the next day
+                // Resetăm progresul pentru ziua care urmează
                 data.messages = 0;
                 data.voiceTimeMs = 0;
                 if (data.voiceJoinTimestamp) {
-                    // If they are currently in voice, reset the join timestamp to now so the next day's count starts fresh
                     data.voiceJoinTimestamp = Date.now();
                 }
                 await setInDb(key, data);
