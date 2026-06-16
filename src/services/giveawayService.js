@@ -238,12 +238,17 @@ export function createGiveawayButtons(ended = false) {
                 new ButtonBuilder()
                     .setCustomId('giveaway_join')
                     .setLabel('🎉 Join')
-                    .setStyle(ButtonStyle.Primary)
+                    .setStyle(ButtonStyle.Success)
+                    .setDisabled(false),
+                new ButtonBuilder()
+                    .setCustomId('giveaway_leave')
+                    .setLabel('🚪 Leave')
+                    .setStyle(ButtonStyle.Danger)
                     .setDisabled(false),
                 new ButtonBuilder()
                     .setCustomId('giveaway_end')
                     .setLabel('🛑 End')
-                    .setStyle(ButtonStyle.Danger)
+                    .setStyle(ButtonStyle.Secondary)
                     .setDisabled(false)
             );
         }
