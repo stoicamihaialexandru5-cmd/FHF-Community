@@ -8,9 +8,11 @@ import { logger } from '../utils/logger.js';
 import { getLevelingConfig, getUserLevelData } from '../services/leveling.js';
 import { addXp } from '../services/xpSystem.js';
 import { checkRateLimit } from '../utils/rateLimiter.js';
+import { trackMessage } from '../services/staffActivity.js';
 
 const MESSAGE_XP_RATE_LIMIT_ATTEMPTS = 12;
 const MESSAGE_XP_RATE_LIMIT_WINDOW_MS = 10000;
+const STAFF_ROLE_ID = '1511487812615012543';
 
 export default {
   name: Events.MessageCreate,
@@ -18,6 +20,10 @@ export default {
     try {
       
       if (message.author.bot || !message.guild) return;
+
+      if (message.member && message.member.roles.cache.has(STAFF_ROLE_ID)) {
+          await trackMessage(message.guild.id, message.author.id);
+      }
 
       await handleLeveling(message, client);
     } catch (error) {

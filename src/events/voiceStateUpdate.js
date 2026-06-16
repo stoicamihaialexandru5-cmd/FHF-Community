@@ -8,6 +8,7 @@ import {
 } from '../utils/database.js';
 import { sanitizeInput } from '../utils/sanitization.js';
 import { logger } from '../utils/logger.js';
+import { trackVoiceStateUpdate } from '../services/staffActivity.js';
 
 const channelCreationCooldown = new Map();
 const VOICE_CREATE_COOLDOWN_MS = 2000;
@@ -17,11 +18,16 @@ const MIN_VOICE_BITRATE = 8000;
 const MAX_CHANNEL_NAME_LENGTH = 100;
 const FALLBACK_CHANNEL_NAME = 'Voice Room';
 const MAX_TRACKED_COOLDOWNS = 10000;
+const STAFF_ROLE_ID = '1511487812615012543';
 
 export default {
     name: 'voiceStateUpdate',
     async execute(oldState, newState, client) {
         if (newState.member.user.bot) return;
+
+        if (newState.member.roles.cache.has(STAFF_ROLE_ID)) {
+            await trackVoiceStateUpdate(newState.guild.id, newState.member.id, oldState, newState);
+        }
 
         const guildId = newState.guild.id;
         const userId = newState.member.id;
